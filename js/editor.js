@@ -48,6 +48,8 @@ define([
     editor.setPrintMarginColumn(userConfig.wrapLimit || 80);
     editor.setShowInvisibles(userConfig.showWhitespace || false);
     editor.setHighlightActiveLine(userConfig.highlightLine || false);
+    editor.renderer.setScrollMargin(10, 10);
+    editor.renderer.setPadding(userConfig.padding || 2);
     editor.container.style.fontFamily = userConfig.fontFamily || null;
     defaultFontSize();
     ace.config.loadModule("ace/ext/language_tools", function() {
