@@ -20,6 +20,10 @@
   &.autohide {
     transition: width .3s ease-in-out .3s, border-width .3s ease-in-out .3s, padding .3s linear .3s;
   }
+  
+  &._resize {
+    transition: none;
+  }
 
   //display: none;
   width: 0px;
@@ -148,6 +152,31 @@
   &.loading .load-ui {
     display: block;
   }
+}
 
+.project-resizer-wrapper {
+  .autohide & {
+    display: none;
+  }
   
+  position: absolute;
+  height: 100%;
+  right: 0;
+  top: 0;
+  
+  width: 10px;
+  
+  .project-resizer {
+    &:extend(.project-resizer-wrapper);
+    width: 5px;
+    visibility: hidden;
+  }
+  
+  &:hover {
+    .project-resizer {
+      visibility: visible;
+      transition-delay: 0.15s;
+      cursor: col-resize;
+    }
+  }
 }

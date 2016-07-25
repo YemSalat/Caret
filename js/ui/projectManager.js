@@ -26,7 +26,7 @@ define([
   */
 
   var guidCounter = 0;
-  
+
   //pseudo-worker to let the UI thread breathe
   var queue = [];
   var working = false;
@@ -49,9 +49,9 @@ define([
     };
     setTimeout(process);
   };
-  
+
   var getPath = (entry, c) => chrome.fileSystem.getDisplayPath(entry, c);
-  
+
   //FSNodes are used to track filesystem state inside projects
   //We don't use the typical File object, because we're not really reading them
   //Nodes form a tree starting at the root directory
@@ -72,7 +72,7 @@ define([
       this.label = entry.name;
       this.isDirectory = entry.isDirectory;
     },
-    
+
     //walk will asynchronously collect the file tree
     walk: function(blacklist, done) {
       var self = this;
@@ -86,13 +86,13 @@ define([
           return done(self);
         }
       };
-      
+
       var collect = function(list) {
         if (list.length == 0) return complete();
         entries.push.apply(entries, list);
         reader.readEntries(collect);
       };
-      
+
       var complete = function() {
         self.children = [];
         entries.forEach(function(entry) {
@@ -104,7 +104,7 @@ define([
           if (blacklist) {
             if (blacklist.test(entry.name)) return;
           }
-          
+
           var node = new FSNode(entry);
           self.children.push(node);
           if (node.isDirectory) {
@@ -129,9 +129,18 @@ define([
     this.expanded = {};
     this.project = null;
     this.projectFile = null;
+
     if (element) {
       this.setElement(element);
+
+      // use host document object to bind resize events
+      if (document && !document.boundSidebarRersizeEvents) {
+        setupSidebarResize(element, document);
+        // 'guard' singleton ProjectManger event listeners
+        document.boundSidebarRersizeEvents = true;
+      }
     }
+
     this.loading = false;
     var self = this;
     chrome.storage.local.get("retainedProject", function(data) {
@@ -166,20 +175,20 @@ define([
       }
     });
   };
-  
+
   var blacklistRegExp = function(config) {
     //avoid race condition when reloading
     var blacklist = (config || Settings.get("user")).ignoreFiles;
     if (blacklist) {
       return new RegExp(blacklist);
     }
-    
+
     return null;
   }
-  
+
   ProjectManager.prototype = {
     element: null,
-    
+
     addDirectory: function(c) {
       var self = this;
       chrome.fileSystem.chooseEntry({ type: "openDirectory" }, function(d) {
@@ -187,7 +196,7 @@ define([
         self.insertDirectory(d);
       });
     },
-    
+
     insertDirectory: function(entry) {
       var root;
       this.element.addClass("loading");
@@ -198,18 +207,18 @@ define([
             root = directoryNode;
           }
         });
-        
+
         //if this is the first, go ahead and start the slideout
         if (!this.directories.length) {
           this.element.addClass("show");
         }
-        
+
         if (!root) {
           root = new FSNode(entry);
           root.path = path;
           this.directories.push(root);
         }
-        
+
         //if the directory was there, we still want
         //to refresh it, in response to the users
         //interaction
@@ -228,12 +237,12 @@ define([
       });
       this.render();
     },
-    
+
     removeAllDirectories: function() {
       this.directories = [];
       this.render();
     },
-    
+
     refresh: function() {
       var counter = 0;
       var self = this;
@@ -251,10 +260,10 @@ define([
         d.walk(blacklist, check);
       });
     },
-    
+
     render: function() {
       if (!this.element) return;
-      
+
       //Ace doesn't know about non-window resize events
       //moving the panel will screw up its dimensions
       setTimeout(function() {
@@ -265,6 +274,7 @@ define([
       this.pathMap = {};
       if (this.directories.length == 0 && !this.loading) {
         this.element.removeClass("show");
+        this.element.style.width = null;
         tree.innerHTML = "";
         return;
       }
@@ -273,7 +283,7 @@ define([
       if (this.loading) {
         this.element.addClass("loading");
       }
-      
+
       var walker = function(node) {
         var li = document.createElement("li");
         if (node.isDirectory) {
@@ -314,7 +324,7 @@ define([
         }
         return li;
       };
-      
+
       //we give the load bar a chance to display before rendering
       tick(function() {
         var trees = self.directories.map(walker);
@@ -324,7 +334,7 @@ define([
           dir.classList.add("expanded");
           list.appendChild(dir);
         });
-        
+
         tree.innerHTML = "";
         tree.appendChild(list);
         if (!self.loading) {
@@ -332,12 +342,12 @@ define([
         }
       });
     },
-    
+
     setElement: function(el) {
       this.element = el;
       this.bindEvents();
     },
-    
+
     bindEvents: function() {
       var self = this;
       this.element.on("click", function(e) {
@@ -351,7 +361,7 @@ define([
         editor.focus();
       });
     },
-    
+
     openFile: function(path, c) {
       var self = this;
       var found = false;
@@ -395,7 +405,7 @@ define([
         );
       });
     },
-    
+
     generateProject: function() {
       var project = this.project || {};
       //everything but "folders" is left as-is
@@ -424,7 +434,7 @@ define([
       }
       return json;
     },
-    
+
     openProjectFile: function() {
       var file = new File();
       var self = this;
@@ -438,14 +448,14 @@ define([
         });
       });
     },
-    
+
     watchProjectFile: function() {
       var self = this;
       this.projectFile.read(function(err, data) {
         self.loadProject(data);
       });
     },
-    
+
     loadProject: function(project) {
       var self = this;
       //project is the JSON from a project file
@@ -486,7 +496,7 @@ define([
         }
       );
     },
-    
+
     editProjectFile: function() {
       if (!this.projectFile) {
         return dialog(i18n.get("projectNoCurrentProject"));
@@ -496,7 +506,7 @@ define([
         sessions.addFile(data, self.projectFile);
       });
     },
-    
+
     clearProject: function(keepRetained) {
       this.projectFile = null;
       this.directories = [];
@@ -505,11 +515,68 @@ define([
       if (!keepRetained) chrome.storage.local.remove("retainedProject");
       this.render();
     },
-    
+
     getPaths: function() {
       return Object.keys(this.pathMap);
     }
   };
+
+  // Resize sidebar
+  // min / max sidebar width
+  var MIN_WIDTH = 100;
+  var MAX_WIDTH = 500;
+
+  function setupSidebarResize(element, document) {
+    // Sidebar resizing
+    var isResizing = false;
+    // make sure width is not set in element `style`
+    element.style.width = null;
+
+    var startSidebarResize = function (evt) {
+      if (evt.target.hasClass('project-resizer')) {
+        // do not resize when 'autohide' is on
+        if (element.hasClass('autohide')) return;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+
+        element.addClass('_resize');
+        isResizing = true;
+      }
+    };
+
+    var doSidebarResize = function (evt) {
+      if (!isResizing) return;
+
+      var mouseX = evt.pageX;
+      if (mouseX > MIN_WIDTH && mouseX < MAX_WIDTH) {
+        element.style.width = evt.pageX + 'px';
+      }
+    };
+
+    var stopSidebarResize = function (evt) {
+      if (!isResizing) return;
+
+      evt.preventDefault();
+      evt.stopPropagation();
+
+      element.removeClass('_resize');
+      isResizing = false;
+
+      //Ace doesn't know about non-window resize events
+      //moving the panel will screw up its dimensions
+      setTimeout(function() {
+        editor.resize();
+      }, 100);
+    };
+
+    //set resizing events
+    if (!document.boundSidebarRersizeEvents) {
+      document.addEventListener('mousedown', startSidebarResize);
+      document.addEventListener('mousemove', doSidebarResize);
+      document.addEventListener('mouseup', stopSidebarResize);
+    }
+  }
 
   var pm = new ProjectManager(document.find(".project"));
   command.on("project:add-dir", pm.addDirectory.bind(pm));
@@ -522,16 +589,17 @@ define([
   command.on("project:clear", pm.clearProject.bind(pm));
 
   context.register("Remove from Project", "removeDirectory", "root/directory/:id", pm.removeDirectory.bind(pm));
-  
+
   var setAutoHide = function() {
     var hide = Settings.get("user").autoHideProject;
     if (hide) {
       pm.element.classList.add("autohide");
+      pm.element.style.width = null;
     } else {
       pm.element.classList.remove("autohide");
     }
   }
-  
+
   command.on("init:startup", setAutoHide);
   command.on("init:restart", setAutoHide);
 
