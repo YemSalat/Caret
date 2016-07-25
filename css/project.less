@@ -21,6 +21,10 @@
     transition: width .3s ease-in-out .3s, border-width .3s ease-in-out .3s, padding .3s linear .3s;
   }
 
+  &._resize {
+    transition: none;
+  }
+
   //display: none;
   width: 0px;
   padding: 4px 0;
@@ -150,4 +154,32 @@
   }
 
   
+}
+
+.project-resizer-wrapper {
+  .autohide & {
+    display: none;
+  }
+
+  position: absolute;
+  height: 100%;
+  right: 0;
+  top: 0;
+
+  width: 10px;
+
+  .project-resizer {
+    &:extend(.project-resizer-wrapper);
+    width: 5px;
+    visibility: hidden;
+  }
+
+  &:hover {
+    .project-resizer {
+      visibility: visible;
+      cursor: col-resize;
+      // a delay so the cursor does not flicker
+      transition-delay: 0.15s;
+    }
+  }
 }

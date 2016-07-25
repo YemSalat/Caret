@@ -129,9 +129,18 @@ define([
     this.expanded = {};
     this.project = null;
     this.projectFile = null;
+
     if (element) {
       this.setElement(element);
+
+      // use host document object to bind resize events
+      if (document && !document.boundSidebarRersizeEvents) {
+        setupSidebarResize(element, document);
+        // 'guard' singleton ProjectManger event listeners
+        document.boundSidebarRersizeEvents = true;
+      }
     }
+
     this.loading = false;
     var self = this;
     chrome.storage.local.get("retainedProject", function(data) {
@@ -265,6 +274,7 @@ define([
       this.pathMap = {};
       if (this.directories.length == 0 && !this.loading) {
         this.element.removeClass("show");
+        this.element.style.width = null;
         tree.innerHTML = "";
         return;
       }
@@ -511,6 +521,60 @@ define([
     }
   };
 
+  // Resize sidebar
+  // min / max sidebar width
+  var MIN_WIDTH = 100;
+  var MAX_WIDTH = 500;
+
+  function setupSidebarResize(element, document) {
+    // Sidebar resizing
+    var isResizing = false;
+    // make sure width is not set in element `style`
+    element.style.width = null;
+
+    var startSidebarResize = function (evt) {
+      if (evt.target.hasClass('project-resizer')) {
+        // do not resize when 'autohide' is on
+        if (element.hasClass('autohide')) return;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+
+        element.addClass('_resize');
+        isResizing = true;
+      }
+    };
+
+    var doSidebarResize = function (evt) {
+      if (!isResizing) return;
+
+      var mouseX = evt.pageX;
+      if (mouseX > MIN_WIDTH && mouseX < MAX_WIDTH) {
+        element.style.width = evt.pageX + 'px';
+      }
+    };
+
+    var stopSidebarResize = function (evt) {
+      if (!isResizing) return;
+
+      evt.preventDefault();
+      evt.stopPropagation();
+
+      element.removeClass('_resize');
+      isResizing = false;
+
+      //Ace doesn't know about non-window resize events
+      //moving the panel will screw up its dimensions
+      setTimeout(function() {
+        editor.resize();
+      }, 100);
+    };
+
+    document.addEventListener('mousedown', startSidebarResize);
+    document.addEventListener('mousemove', doSidebarResize);
+    document.addEventListener('mouseup', stopSidebarResize);
+  }
+
   var pm = new ProjectManager(document.find(".project"));
   command.on("project:add-dir", pm.addDirectory.bind(pm));
   command.on("project:remove-all", pm.removeAllDirectories.bind(pm));
@@ -527,6 +591,7 @@ define([
     var hide = Settings.get("user").autoHideProject;
     if (hide) {
       pm.element.classList.add("autohide");
+      pm.element.style.width = null;
     } else {
       pm.element.classList.remove("autohide");
     }
